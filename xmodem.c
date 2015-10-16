@@ -1,36 +1,182 @@
-#include <cmoc.h>
+/***********************************************************************
+**
+** This file is part of the CXCOMM project.
+**
+** Copyright (C) 2015 Michael Maydaniuk.  All rights reserved.
+** 
+**
+**
+** This file may be distributed and/or modified under the terms of the
+** GNU General Public License version 2 as published by the Free Software
+** Foundation and appearing in the file gpl-2.0.txt included in the
+** packaging of this file.
+**
+** This program is distributed in the hope that it will be useful,
+** but WITHOUT ANY WARRANTY; without even the implied warranty of
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+** GNU General Public License for more details.
+**
+** You should have received a copy of the GNU General Public License
+** along with this program; if not, write to the Free Software
+** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  
+** 02110-1301  USA
+**
+** 
+**
+**********************************************************************/
+
+
+include "xmodem.h"
+include "ascii.h"
+
 typedef unsigned char byte;
 typedef unsigned int word;
 typedef unsigned char sbyte;
 
-#include <disk.h>
 
 void send_xmodem();
 void receive_xmodem();
 void crc16();
 void checksum();
 
+const char MODE_YMODEM 	= 0b00000001;
+const char MODE_CRC 	= 0b00000010;
+const char MODE_1KBLOCK	= 0b00000100;
 
-#define COMVEC	0x120
-#define STANDARD_CMD_COUNT 23
-#define ADDL_CMD_COUNT 2
-
-unsigned int disp_tbl[25];
-void* old_disp_tbl;
 
 byte x;
+char sector_buffer[1024];
+
  
 //int volatile * const old_disp_tbl = (int*) 0xE236;
 
-// new commands
-// sx - send xmodem
-// rx - receive xmodem
-char new_cmd_dict[] = { 'S',0xD8,'R',0xD8 };
+void xm_check_block() {
+	
+	
+	asm {
+		; This is the traditional looping implementation: a lot shorter, but about
+		; half as fast.  This algorithm can be found used everywhere.
+		; 6809 implementation: Ciaran Anscomb
+				eora	crc		; 
+				ldb	#8			; 
+				stb	crc			; 
+				ldb	crc+1		; 
+		loop:
+				lslb			; 
+				rola			;
+				bcc	tag			; 
+				eora	#$10	; 
+				eorb	#$21	; 
+		tag		dec	crc			; 
+				bne	loop		; 
+				std	crc			; 
+				rts
+		}
+}
 
-void send_xmodem() {
+// send EOT's until acknowledged
+// this is applicable to both YMODEM and XMODEM
+int xm_done_transmit() {
+	for (x= 0; x < 10; x++) {
+		term_putc(EOT);
+		if (term_peek_byte() == ACK) {
+			return 0;
+		}
+	}
+	return -1;
+}
+
+
+
+// get a block of data from disk.  
+//
+// returns a pointer to the data, C_EOF at end of file or error
+char* xm_get_block_from_disk(filespec* fs, blocksize) {
+	
+}
+
+void xm_send_xmodem(char* filename, void * (status_callback)(int blocknum, int code)) {
+	filespec* fs;
+	int ret;
+	int blocknum = 1;
+	int blocklen = 128;
+	int mode = 0;
+	int fileindex = 0; 
+	int j = 0;
+	
 	printf("TX XMODEM");
 	// find file in directory
-	// get first granule
+	fs = open_file(filename);
+
+
+	for (;;) {
+
+		// get the next block from disk.  
+		block = xm_get_block_from_disk(fs, blocklen);
+		if (block == EOF) {
+			xm_done_transmit();
+			break;
+		}
+		
+
+		// send the header block if it is XMODEM-1k or YMODEM
+		if (blocknum == 0 && (mode & MODE_1KBLOCK == 0)) {
+			// send header block	
+			j = 0;
+			while (c = *filename++) {
+				term_putc(c);
+				j++
+			}
+			// fill the first block with zeros.  is this needed?
+			for (;j < 128; j++) {
+				term_putc(0x00);
+			}
+			
+		} else {
+		
+			// send a data block
+			if (blocklen == 128) {
+				term_putc(SOH);			// 128 byte blocks
+			} else {	
+				term_putc(STX);			// 1024 byte blocks
+			}
+			
+			// send block number and its inverse
+			term_putc(blocknum << 8);
+			term_putc(~blocknum << 8);
+			
+			// send the block
+			for (bufptr = sector_buffer; bufptr < sector_buffer+block_size; bufptr++) {
+				term_putc(*bufptr);
+				check = check_block(*bufptr, mode);
+			}
+			
+			// send the checksum or crc depending on mode
+			xm_check_block(check, mode);
+		}
+		
+		// wait for response
+		for (x = 0; x < 10; x++) {
+			// wait for a response byte
+			c = get_byte(2000);
+			if (c < 0 || c == NAK) continue;
+			
+			// block is acknowledged, get next
+			if (c == ACK) {
+				if (blocknum == 0) {
+					c = get_byte(2000);
+				}
+				blocknum++;
+				break;
+			} 
+			
+			// client cancelled, terminate
+			if (c == CAN) {
+				term_putc(ACK);
+				return -1;
+			}
+		}		
+	}
 	// convert to sector
 
 	// read sector
@@ -48,58 +194,7 @@ void send_xmodem() {
 	
 }
 
-void receive_xmodem() {
+void xm_receive_xmodem() {
 	printf("RX XMODEM");
 }
 
-/*
- install the patched commands into memory so they can be called via command interpreter.
- 
- Color basic uses two tables, a dictionary table of commands, and a dispatch table of addresses.
- There is no memory available between the dictionary and dispatch table in the CC3 rom, so we 
- copy the dispatch table to a new address (disp_tbl) and we tack the new commands onto the existing
- dictionary.
- 
- We then update the pointer to the dispatch table, and a few counter variables in the ROM.
-*/
-void install(unsigned int* disp_tbl) {
-	old_disp_tbl = 0xe236;
-
-	// copy the old dispatch table, to a new one we have declared
-	memcpy((void*) disp_tbl, old_disp_tbl, 46);
-	
-	// add our new routines to the end of the table
-	disp_tbl[23] = send_xmodem;
-	disp_tbl[24] = receive_xmodem;
-	
-	// copy the new dictionary commands to the end of the old dictionary table
-	memcpy(old_disp_tbl, (void*) new_cmd_dict, 4); 
-	
-	
-	asm {
-	
-		; we work by patching enhanced basic dispatch tables and tokenizer.
-		; we add two new commands to the token list, and copy the dispatch 
-		; table to a new area of memory, and add the dispatch links to it.
-		;
-		pshs 	a,x
-		
-		lda		#0x19		; there are 2 new commands
-		sta		$e162		; patch the enhanced basic command vector table
-		
-		lda		#0xfa		; tokens now go up to $fa
-		sta 	$e197		; patch th command dispatch routine
-		ldx		disp_tbl	
-		stx		$e1a1		; change the pointer to the new copy
-		
-		puls	x,a
-	}	
-}
-
-
-int main() {
-	install(disp_tbl);
-	printf("Hello World");
-	return 0;
-}
-	
