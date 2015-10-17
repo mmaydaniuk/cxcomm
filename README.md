@@ -3,6 +3,8 @@ Communications Tools for TRS-80 Color Computer 3
 
 This package provides a communications driver (in the same vein as COTERM.BIN) and XMODEM/YMODEM transmit and receive commands. The application has been developed with Pierre Sarazin's excellent cmoc c-like compiler, and is implemented in C and 6809 assembly language.
 
+** It is currently still under active development (Oct 2015) and is not yet running code. **
+
 Compiling
 =========
 
