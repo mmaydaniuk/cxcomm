@@ -37,9 +37,10 @@ typedef struct dirent {
 	char			d_ext[4];
 	unsigned char 	d_type;
 	unsigned char	is_ascii;
-	unsigned char   first_granule;
+	unsigned char   first_granule;  // need to map this to FAT
 	unsigned int	last_sector_bytes;
 	char			unused[16];
+	char			drive_number; // TODO: remove?
 } dirent;
 
 

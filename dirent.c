@@ -55,7 +55,7 @@ DIR* opendir(char path)
 	dir_entry = (dirent*) malloc(sizeof(dirent));
 	
 	
-	if (!read_sector(d->buffer, path, 17, 3))
+	if (!dskcon(DSKCON_READ,d->buffer, path, 17, 3))
 		return NULL;
 	
 	d->cur_offset = 0;
@@ -112,16 +112,15 @@ dirent* readdir(DIR* dir)
 			
 		dir->cur_offset += 32;   // point to the next entry
 		
-		// get next sector, note relies on cur_offset being 256 bytes
+		// get next sector, note relies on cur_offset being 256 bytes (ie. 0)
 		if (dir->cur_offset == 0 && ++dir->cur_sector < 19) {
-			read_sector(dir->buffer, dir->drive_number, 17, dir->cur_sector);
+			dskcon(DSKCON_READ,dir->buffer, dir->drive_number, 17, dir->cur_sector);
 		}
 		return dir_entry;
 	}
 			
 }
 
-#define CXCOMM_TEST 1
 #ifdef CXCOMM_TEST
 
 int dirent_test() {
@@ -134,7 +133,6 @@ int dirent_test() {
 
 	if (dp != NULL) {
 		while ((ep = readdir(dp)) != NULL) {
-			if (i > 2) return 0;
 			printf("%s.%s\n",ep->d_name,ep->d_ext);
 			++i;
 		}
