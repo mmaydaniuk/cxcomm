@@ -1,5 +1,5 @@
 CC=cmoc
-COPTS=--verbose --org=C000 -DCXCOMM_TEST=1 -DDEBUG=1
+COPTS=--verbose --org=2800 -DCXCOMM_TEST=1 -DDEBUG=1
 
 
 
