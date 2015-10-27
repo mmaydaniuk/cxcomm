@@ -25,12 +25,12 @@
 **
 **********************************************************************/
 
-#include "disk.h"
+#include "floppy.h"
 #include "malloc.h"
 #include "debug.h"
 #include "unistd.h"
 
-/* disk.h
+/* floppy.h
  * 
  * Low-level coco disk routines
  */

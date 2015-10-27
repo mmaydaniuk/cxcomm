@@ -32,7 +32,7 @@
  */
 
 #include "dirent.h"
-#include "disk.h"
+#include "floppy.h"
 #include "malloc.h"
 
 #ifndef NULL
