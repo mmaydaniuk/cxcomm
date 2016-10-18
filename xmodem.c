@@ -26,8 +26,8 @@
 **********************************************************************/
 
 
-include "xmodem.h"
-include "ascii.h"
+#include "xmodem.h"
+#include "ascii.h"
 
 typedef unsigned char byte;
 typedef unsigned int word;
@@ -39,13 +39,13 @@ void receive_xmodem();
 void crc16();
 void checksum();
 
-const char MODE_YMODEM 	= 0b00000001;
-const char MODE_CRC 	= 0b00000010;
-const char MODE_1KBLOCK	= 0b00000100;
+char MODE_YMODEM	= 0x01;
+char MODE_CRC 		= 0x02;
+char MODE_1KBLOCK	= 0x04;
 
 
 byte x;
-char sector_buffer[1024];
+char _buffer[512];
 
  
 //int volatile * const old_disp_tbl = (int*) 0xE236;
@@ -87,12 +87,35 @@ int xm_done_transmit() {
 }
 
 
+// open the disk file
+//
+void open_file() {
+	char* filename = "TEST.TXT";
+	_fp = fopen(filename,"r");
+		
+	if (_fp == 0) {
+		printf("File not found");
+	}
+	
+	int b;
+}
+
 
 // get a block of data from disk.  
 //
 // returns a pointer to the data, C_EOF at end of file or error
-char* xm_get_block_from_disk(filespec* fs, blocksize) {
+char* xm_get_block_from_disk(int* fp, int blocksize) {
 	
+	b = fread((char*) _buffer, 1, 128, fp);	
+	if (b <= 0) {
+		return 0;
+	}
+
+	// not sure if next two lines required
+	if (b < 128) {
+		buffer[b++] = 0x0;
+	}
+	return b;
 }
 
 void xm_send_xmodem(char* filename, void * (status_callback)(int blocknum, int code)) {
@@ -106,14 +129,14 @@ void xm_send_xmodem(char* filename, void * (status_callback)(int blocknum, int c
 	
 	printf("TX XMODEM");
 	// find file in directory
-	fs = open_file(filename);
+	fp = open_file(filename);
 
 
 	for (;;) {
 
 		// get the next block from disk.  
-		block = xm_get_block_from_disk(fs, blocklen);
-		if (block == EOF) {
+		bytes = xm_get_block_from_disk(fp, blocklen);
+		if (bytes == EOF) {
 			xm_done_transmit();
 			break;
 		}
@@ -146,7 +169,7 @@ void xm_send_xmodem(char* filename, void * (status_callback)(int blocknum, int c
 			term_putc(~blocknum << 8);
 			
 			// send the block
-			for (bufptr = sector_buffer; bufptr < sector_buffer+block_size; bufptr++) {
+			for (bufptr = _buffer; bufptr < _buffer+block_size; bufptr++) {
 				term_putc(*bufptr);
 				check = check_block(*bufptr, mode);
 			}
@@ -193,6 +216,15 @@ void xm_send_xmodem(char* filename, void * (status_callback)(int blocknum, int c
 	
 	
 }
+
+// fill the local buffer with characters
+// 
+// TODO: should read a track at a time or something because disk 
+// is slow.
+//
+void fill_buffer() {
+}
+
 
 void xm_receive_xmodem() {
 	printf("RX XMODEM");

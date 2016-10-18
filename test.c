@@ -1,6 +1,6 @@
 #include <cmoc.h>
 #include "stdint.h"
-#include "disk.c"
+#include "floppy.c"
 #include "dirent.c"
 #include "malloc.c"
 #include "ccstdio.c"

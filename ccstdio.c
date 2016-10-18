@@ -282,11 +282,55 @@ fread(char *ptr, size_t size, size_t nmemb, FILE *stream)
 	return i;  // TODO returning bytes note s.b. records
 }
 
+/*
+ * fputc() returns the character written as an
+ *  unsigned char cast to an int or EOF on error. 
+ */
+int
+fputc (char c, FILE* stream) {
+	// get the physical location to write the character
+	
+	// put it in the buffer at the correct offset
+	
+	// write to disk if the buffer is full
+	
+	// increment the offset
+	return 0;
+}
+
+
+/*
+ * fwrite()
+ * 
+ * The function fwrite() writes nmemb elements of data, each size bytes 
+ * long, to the stream pointed to by stream, obtaining them from the 
+ * location given by ptr.
+ * On success, fread() and fwrite() return the number of items read or written.
+ * This number equals the number of bytes transferred only when size is 1.
+ * 
+ *  If an error occurs, or the end of the file is reached, the return
+ *  value is a short item count (or zero). 
+ */
 size_t
 fwrite(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 	if (!(stream->access_mode & ACCESS_MODE_WRITE)) {
 		return 0;
 	}
+	
+	unsigned int bytes_to_write = size * nmemb;
+	
+	int i = 0;
+	
+	while (i < bytes_to_write && !feof(stream)) {
+		i++;
+		fputc((char) *ptr, stream);
+		if (ferror(stream)) {
+				return 0;
+		}
+			
+		ptr++;
+	}
+	return i; 
 		
 }
 

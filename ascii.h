@@ -18,7 +18,6 @@
 #define TAB 	0x9
 #define LF 		0xa
 #define CR 		0xd
-#define NAK		0x14
 #define XON 	0x11
 #define XOFF 	0x13
 #define SYN 	0x16
